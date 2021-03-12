@@ -154,7 +154,7 @@ def handle_photo(update: Update, context: CallbackContext):
 
     photo = photo_get_best(message.photo)
     if photo is None:
-        logger.warn("photo list was empty")
+        logger.warning("photo list was empty")
         return
 
     ext = None
@@ -171,7 +171,7 @@ def handle_document(update: Update, context: CallbackContext):
 
     document = message.document
     if document is None:
-        logger.warn("document was empty")
+        logger.warning("document was empty")
         return
 
     ext = None
@@ -190,7 +190,7 @@ def handle_audio(update: Update, context: CallbackContext):
 
     audio = message.audio
     if audio is None:
-        logger.warn("audio was empty")
+        logger.warning("audio was empty")
         return
 
     ext = None
@@ -209,7 +209,7 @@ def handle_voice(update: Update, context: CallbackContext):
 
     voice = message.voice
     if voice is None:
-        logger.warn("voice was empty")
+        logger.warning("voice was empty")
         return
 
     ext = None
@@ -228,7 +228,7 @@ def handle_video(update: Update, context: CallbackContext):
 
     video = message.video
     if video is None:
-        logger.warn("video was empty")
+        logger.warning("video was empty")
         return
 
     ext = None
@@ -246,19 +246,19 @@ def main():
         sys.exit(1)
 
     if "TMPBOT_TELEGRAM_WHITELIST" not in os.environ:
-        logger.warn(f"no TELEGRAM_WHITELIST supplied, defaulting to {WHITELIST}")
+        logger.warning(f"no TELEGRAM_WHITELIST supplied, defaulting to {WHITELIST}")
 
     if "TMPBOT_PASTE_URL" not in os.environ:
-        logger.warn(f"no TMPBOT_PASTE_URL supplied, defaulting to {PASTE_URL}")
+        logger.warning(f"no TMPBOT_PASTE_URL supplied, defaulting to {PASTE_URL}")
 
     if "TMPBOT_PASTE_DIR" not in os.environ:
-        logger.warn(f"no TMPBOT_PASTE_DIR supplied, defaulting to {PASTE_DIR}")
+        logger.warning(f"no TMPBOT_PASTE_DIR supplied, defaulting to {PASTE_DIR}")
 
     if "TMPBOT_GENERATE_LENGTH" not in os.environ:
-        logger.warn(f"no TMPBOT_GENERATE_LENGTH supplied, defaulting to {GENERATE_LENGTH}")
+        logger.warning(f"no TMPBOT_GENERATE_LENGTH supplied, defaulting to {GENERATE_LENGTH}")
 
     if "TMPBOT_GENERATE_TRIES" not in os.environ:
-        logger.warn(f"no TMPBOT_GENERATE_TRIES supplied, defaulting to {GENERATE_TRIES}")
+        logger.warning(f"no TMPBOT_GENERATE_TRIES supplied, defaulting to {GENERATE_TRIES}")
 
     if not os.path.exists(PASTE_DIR):
         logger.error(f"PASTE_DIR directory does not exist")
