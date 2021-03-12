@@ -102,6 +102,10 @@ def ext_parse_mime(message: Message, mime: Optional[str], ext: Optional[str]) ->
         else:
             ext = mimeext
 
+        # hack: python on debian confusingly guesses jpe for image/jpeg
+        if ext == 'jpe':
+            ext = 'jpg'
+
     return ext
 
 # --- handlers ---
