@@ -277,7 +277,6 @@ def main():
 
     dispatcher.add_handler(WCommandHandler("start", handle_start))
     dispatcher.add_handler(WCommandHandler("text", handle_text))
-    dispatcher.add_handler(WMessageHandler(Filters.text & ~Filters.command, handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
