@@ -63,7 +63,7 @@ def upload_data(message: Message, data: bytes, ext: str):
 
 # --- handler helpers ---
 
-def message_get_username(mesage: Message) -> str:
+def message_get_username(message: Message) -> str:
     user = message.from_user
     if user is None:
         name = "unknown user"
