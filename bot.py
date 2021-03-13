@@ -121,8 +121,22 @@ def ext_parse_mime(message: Message, mime: Optional[str], ext: Optional[str]) ->
 
     return ext
 
+def wrap_exceptions(fn):
+    def handler(update: Update, context: CallbackContext):
+        try:
+            fn(update, context)
+        except Exception as e:
+            logger.exception("uncaught exception in message handler")
+
+            message = update.message
+            if message is None:
+                return
+
+            message.reply_text(f"sorry, something went wrong there.\n({e})")
+
 # --- handlers ---
 
+@wrap_exceptions
 def handle_start(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -137,6 +151,7 @@ def handle_start(update: Update, context: CallbackContext):
         "Send me stuff and I'll host it!"
     )
 
+@wrap_exceptions
 def handle_text(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -170,6 +185,7 @@ def handle_text(update: Update, context: CallbackContext):
 
     upload_data(message, data.encode('utf-8'), ext)
 
+@wrap_exceptions
 def handle_photo(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -190,6 +206,7 @@ def handle_photo(update: Update, context: CallbackContext):
 
     upload_file(message, photo.get_file(), ext)
 
+@wrap_exceptions
 def handle_document(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -212,6 +229,7 @@ def handle_document(update: Update, context: CallbackContext):
 
     upload_file(message, document.get_file(), ext)
 
+@wrap_exceptions
 def handle_audio(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -234,6 +252,7 @@ def handle_audio(update: Update, context: CallbackContext):
 
     upload_file(message, audio.get_file(), ext)
 
+@wrap_exceptions
 def handle_voice(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
@@ -256,6 +275,7 @@ def handle_voice(update: Update, context: CallbackContext):
 
     upload_file(message, voice.get_file(), ext)
 
+@wrap_exceptions
 def handle_video(update: Update, context: CallbackContext):
     message = update.message
     if message is None:
