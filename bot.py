@@ -49,6 +49,7 @@ def upload_file(message: Message, file: File, ext: str):
     with open(PASTE_DIR + id, "wb") as f:
         file.download(out = f)
 
+    logger.info(f"uploaded file {PASTE_URL + id}")
     message.reply_text(PASTE_URL + id)
 
 def upload_data(message: Message, data: bytes, ext: str):
@@ -57,9 +58,21 @@ def upload_data(message: Message, data: bytes, ext: str):
     with open(PASTE_DIR + id, "wb") as f:
         f.write(data)
 
+    logger.info(f"uploaded file {PASTE_URL + id}")
     message.reply_text(PASTE_URL + id)
 
 # --- handler helpers ---
+
+def message_get_username(mesage: Message) -> str:
+    user = message.from_user
+    if user is None:
+        name = "unknown user"
+    elif user.username is not None:
+        name = f"@{user.username}"
+    else:
+        name = f"@{user.id}"
+
+    return name
 
 def photo_get_best(photos: List[PhotoSize]) -> Optional[PhotoSize]:
     if len(photos) == 0:
@@ -115,6 +128,9 @@ def handle_start(update: Update, context: CallbackContext):
     if message is None:
         return
 
+    name = message_get_username(message)
+    logger.info(f"start message received from {name}")
+
     message.reply_text(
         "Hi! I'm the tmp.yrlf.at bot.\n" +
         "\n" +
@@ -132,6 +148,9 @@ def handle_text(update: Update, context: CallbackContext):
 
     if not text.startswith("/text"):
         return
+
+    name = message_get_username(message)
+    logger.info(f"text upload received from {name}")
 
     parts = text.split('\n', 1)
     if len(parts) != 2:
@@ -161,6 +180,9 @@ def handle_photo(update: Update, context: CallbackContext):
         logger.warning("photo list was empty")
         return
 
+    name = message_get_username(message)
+    logger.info(f"photo upload received from {name}")
+
     ext = None
     ext = ext_parse_caption(message, message.caption, ext)
     if ext is None:
@@ -177,6 +199,9 @@ def handle_document(update: Update, context: CallbackContext):
     if document is None:
         logger.warning("document was empty")
         return
+
+    name = message_get_username(message)
+    logger.info(f"document upload received from {name}")
 
     ext = None
     ext = ext_parse_caption(message, message.caption, ext)
@@ -197,6 +222,9 @@ def handle_audio(update: Update, context: CallbackContext):
         logger.warning("audio was empty")
         return
 
+    name = message_get_username(message)
+    logger.info(f"audio upload received from {name}")
+
     ext = None
     ext = ext_parse_caption(message, message.caption, ext)
     ext = ext_parse_mime(message, audio.mime_type, ext)
@@ -216,6 +244,9 @@ def handle_voice(update: Update, context: CallbackContext):
         logger.warning("voice was empty")
         return
 
+    name = message_get_username(message)
+    logger.info(f"voice upload received from {name}")
+
     ext = None
     ext = ext_parse_caption(message, message.caption, ext)
     ext = ext_parse_mime(message, voice.mime_type, ext)
@@ -234,6 +265,9 @@ def handle_video(update: Update, context: CallbackContext):
     if video is None:
         logger.warning("video was empty")
         return
+
+    name = message_get_username(message)
+    logger.info(f"video upload received from {name}")
 
     ext = None
     ext = ext_parse_caption(message, message.caption, ext)
