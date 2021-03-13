@@ -330,12 +330,8 @@ def main():
     dispatcher = updater.dispatcher
 
     whitelist = Filters.user(username = WHITELIST)
-    def WMessageHandler(filters, *args, **kwargs):
-        return MessageHandler(whitelist & filters, *args, **kwargs)
-    def WCommandHandler(cmd, handler, *args, **kwargs):
-        if 'filters' in kwargs:
-            kwargs['filters'] &= whitelist
-        return CommandHandler(cmd, handler, *args, **kwargs)
+    WMessageHandler = lambda filters, handler: MessageHandler(whitelist & filters, handler)
+    WCommandHandler = lambda cmd, handler: CommandHandler(cmd, handler, filters = whitelist)
 
     dispatcher.add_handler(WCommandHandler("start", handle_start))
     dispatcher.add_handler(WCommandHandler("text", handle_text))
