@@ -7,6 +7,7 @@ import mimetypes
 
 from typing import *
 from random import choice
+from functools import wraps
 
 from telegram import Update, Message, PhotoSize, File
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -122,6 +123,7 @@ def ext_parse_mime(message: Message, mime: Optional[str], ext: Optional[str]) ->
     return ext
 
 def wrap_exceptions(fn):
+    @wraps(fn)
     def handler(update: Update, context: CallbackContext):
         try:
             fn(update, context)
@@ -133,6 +135,8 @@ def wrap_exceptions(fn):
                 return
 
             message.reply_text(f"sorry, something went wrong there.\n({e})")
+
+    return handler
 
 # --- handlers ---
 
