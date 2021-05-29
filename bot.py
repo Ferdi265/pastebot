@@ -101,9 +101,9 @@ def ext_parse_caption(message: Message, caption: Optional[str], ext: Optional[st
         capext = caption[1:]
 
         if not caption.startswith("."):
-            message.reply_text("ignoring unrecognized caption")
+            message.reply_text("(ignoring unrecognized caption)")
         elif not all(c in extchars for c in capext):
-            message.reply_text("extension contains chars that are not alphanumeric, underscore, or dash")
+            message.reply_text("(extension contains chars that are not alphanumeric, underscore, or dash)")
         else:
             ext = capext
 
@@ -125,7 +125,7 @@ def ext_find_extension(message: Message, name: str, default: str, mime: Optional
     ext = ext_parse_mime(message, mime, ext)
     if ext is None:
         if noisy:
-            message.reply_text(f"unknown extension, defaulting to .{default}")
+            message.reply_text(f"(unknown extension, defaulting to .{default})")
         ext = default
 
     return ext
@@ -135,7 +135,7 @@ def ext_parse_mime(message: Message, mime: Optional[str], ext: Optional[str]) ->
         mimeext = mimetypes.guess_extension(mime)
 
         if mimeext is None:
-            message.reply_text("ignoring unrecognized MIME type")
+            message.reply_text("(ignoring unrecognized MIME type)")
         elif mimeext.startswith("."):
             ext = mimeext[1:]
         else:
@@ -201,7 +201,7 @@ def handle_text(update: Update, context: CallbackContext):
         cmd = "text"
         default_ext = "txt"
     else:
-        message.reply_text("ignoring invalid command")
+        message.reply_text("(ignoring invalid command)")
         return
 
     parts = text.split('\n', 1)
