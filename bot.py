@@ -213,8 +213,8 @@ def handle_text(update: Update, context: CallbackContext):
     ext = ext_find_extension(message, name, "txt", caption = caption, try_custom = cmd != "extension")
 
     if cmd == "extension":
-        user_custom_ext[name] = cmd
-        message.reply_text(f"Got it! the next file you upload will have the extension `.{ext}`")
+        user_custom_ext[name] = ext
+        message.reply_text(f"Got it! the next file you upload will have the extension '.{ext}'")
     elif cmd == "text":
         if len(parts) < 2:
             message.reply_text("Huh? You didn't send me anything to upload.")
