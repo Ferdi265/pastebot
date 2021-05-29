@@ -186,10 +186,7 @@ def handle_text(update: Update, context: CallbackContext):
     if message is None:
         return
 
-    text = message.text
-    if text is None:
-        return
-
+    text = message.text or ""
     name = message_get_username(message)
 
     if text.startswith("/extension"):
@@ -201,7 +198,7 @@ def handle_text(update: Update, context: CallbackContext):
         cmd = "text"
         default_ext = "txt"
     else:
-        message.reply_text("(ignoring invalid command)")
+        message.reply_text("That's not a valid command, try /text or /extension (or send me a photo or file)")
         return
 
     parts = text.split('\n', 1)
