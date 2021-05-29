@@ -116,7 +116,7 @@ def ext_custom_extension(message: Message, name: str) -> Optional[str]:
 
     return ext
 
-def ext_find_extension(message: Message, name: str, default: str, mime: Optional[str] = None, caption: Optional[str] = None, try_custom: bool = True) -> str:
+def ext_find_extension(message: Message, name: str, default: str, mime: Optional[str] = None, caption: Optional[str] = None, try_custom: bool = True, noisy: bool = True) -> str:
     if caption is None:
         caption = message.caption
 
@@ -124,7 +124,8 @@ def ext_find_extension(message: Message, name: str, default: str, mime: Optional
     ext = ext_parse_caption(message, caption, ext)
     ext = ext_parse_mime(message, mime, ext)
     if ext is None:
-        message.reply_text(f"unknown extension, defaulting to .{default}")
+        if noisy:
+            message.reply_text(f"unknown extension, defaulting to .{default}")
         ext = default
 
     return ext
@@ -194,9 +195,11 @@ def handle_text(update: Update, context: CallbackContext):
     if text.startswith("/extension"):
         logger.info(f"custom extension request received from {name}")
         cmd = "extension"
+        default_ext = ""
     elif text.startswith("/text"):
         logger.info(f"text upload received from {name}")
         cmd = "text"
+        default_ext = "txt"
     else:
         message.reply_text("ignoring invalid command")
         return
@@ -210,11 +213,18 @@ def handle_text(update: Update, context: CallbackContext):
     else:
         caption = args[1]
 
-    ext = ext_find_extension(message, name, "txt", caption = caption, try_custom = cmd != "extension")
+
+    ext = ext_find_extension(
+        message, name, default_ext, caption = caption,
+        try_custom = cmd != "extension", noisy = False
+    )
 
     if cmd == "extension":
-        user_custom_ext[name] = ext
-        message.reply_text(f"Got it! the next file you upload will have the extension '.{ext}'")
+        if ext == default_ext:
+            message.reply_text(f"Uhh, I don't understand what extension you mean")
+        else:
+            user_custom_ext[name] = ext
+            message.reply_text(f"Got it! The next file you upload will have the extension '.{ext}'")
     elif cmd == "text":
         if len(parts) < 2:
             message.reply_text("Huh? You didn't send me anything to upload.")
@@ -237,7 +247,7 @@ def handle_photo(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"photo upload received from {name}")
 
-    ext = ext_find_extension(message, name, "jpg")
+    ext = ext_find_extension(message, name, "jpg", noisy = False)
     upload_file(message, photo.get_file(), ext)
 
 @wrap_exceptions
