@@ -26,6 +26,10 @@ PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
 GENERATE_TRIES = int(os.environ.get("TMPBOT_GENERATE_TRIES", "20"))
 
+# --- state globals ---
+
+user_custom_ext: Dict[str, str] = {}
+
 # --- upload implementation details ---
 
 def generate_id(length: int) -> str:
@@ -105,6 +109,26 @@ def ext_parse_caption(message: Message, caption: Optional[str], ext: Optional[st
 
     return ext
 
+def ext_custom_extension(message: Message, name: str) -> Optional[str]:
+    ext = user_custom_ext.get(name)
+    if ext is not None:
+        del user_custom_ext[name]
+
+    return ext
+
+def ext_find_extension(message: Message, name: str, default: str, mime: Optional[str] = None, caption: Optional[str] = None, try_custom: bool = True) -> str:
+    if caption is None:
+        caption = message.caption
+
+    ext = ext_custom_extension(message, name) if try_custom else None
+    ext = ext_parse_caption(message, caption, ext)
+    ext = ext_parse_mime(message, mime, ext)
+    if ext is None:
+        message.reply_text(f"unknown extension, defaulting to .{default}")
+        ext = default
+
+    return ext
+
 def ext_parse_mime(message: Message, mime: Optional[str], ext: Optional[str]) -> Optional[str]:
     if ext is None and mime is not None:
         mimeext = mimetypes.guess_extension(mime)
@@ -165,16 +189,20 @@ def handle_text(update: Update, context: CallbackContext):
     if text is None:
         return
 
-    if not text.startswith("/text"):
-        return
-
     name = message_get_username(message)
-    logger.info(f"text upload received from {name}")
+
+    if text.startswith("/extension"):
+        logger.info(f"custom extension request received from {name}")
+        cmd = "extension"
+    elif text.startswith("/text"):
+        logger.info(f"text upload received from {name}")
+        cmd = "text"
+    else:
+        message.reply_text("ignoring invalid command")
+        return
 
     parts = text.split('\n', 1)
-    if len(parts) != 2:
-        return
-    cmdline, data = parts
+    cmdline = parts[0]
 
     args = cmdline.split(' ', 1)
     if len(args) != 2:
@@ -182,12 +210,18 @@ def handle_text(update: Update, context: CallbackContext):
     else:
         caption = args[1]
 
-    ext = None
-    ext = ext_parse_caption(message, caption, ext)
-    if ext is None:
-        ext = "txt"
+    ext = ext_find_extension(message, name, "txt", caption = caption, try_custom = cmd != "extension")
 
-    upload_data(message, data.encode('utf-8'), ext)
+    if cmd == "extension":
+        user_custom_ext[name] = cmd
+        message.reply_text(f"Got it! the next file you upload will have the extension `.{ext}`")
+    elif cmd == "text":
+        if len(parts) < 2:
+            message.reply_text("Huh? You didn't send me anything to upload.")
+            return
+
+        data = parts[1]
+        upload_data(message, data.encode('utf-8'), ext)
 
 @wrap_exceptions
 def handle_photo(update: Update, context: CallbackContext):
@@ -203,11 +237,7 @@ def handle_photo(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"photo upload received from {name}")
 
-    ext = None
-    ext = ext_parse_caption(message, message.caption, ext)
-    if ext is None:
-        ext = "jpg"
-
+    ext = ext_find_extension(message, name, "jpg")
     upload_file(message, photo.get_file(), ext)
 
 @wrap_exceptions
@@ -224,13 +254,7 @@ def handle_document(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"document upload received from {name}")
 
-    ext = None
-    ext = ext_parse_caption(message, message.caption, ext)
-    ext = ext_parse_mime(message, document.mime_type, ext)
-    if ext is None:
-        message.reply_text("unknown extension, defaulting to .bin")
-        ext = "bin"
-
+    ext = ext_find_extension(message, name, "bin", document.mime_type)
     upload_file(message, document.get_file(), ext)
 
 @wrap_exceptions
@@ -247,13 +271,7 @@ def handle_audio(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"audio upload received from {name}")
 
-    ext = None
-    ext = ext_parse_caption(message, message.caption, ext)
-    ext = ext_parse_mime(message, audio.mime_type, ext)
-    if ext is None:
-        message.reply_text("unknown extension, defaulting to .audio")
-        ext = "audio"
-
+    ext = ext_find_extension(message, name, "audio", audio.mime_type)
     upload_file(message, audio.get_file(), ext)
 
 @wrap_exceptions
@@ -270,13 +288,7 @@ def handle_voice(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"voice upload received from {name}")
 
-    ext = None
-    ext = ext_parse_caption(message, message.caption, ext)
-    ext = ext_parse_mime(message, voice.mime_type, ext)
-    if ext is None:
-        message.reply_text("unknown extension, defaulting to .voice")
-        ext = "voice"
-
+    ext = ext_find_extension(message, name, "voice", voice.mime_type)
     upload_file(message, voice.get_file(), ext)
 
 @wrap_exceptions
@@ -293,13 +305,7 @@ def handle_video(update: Update, context: CallbackContext):
     name = message_get_username(message)
     logger.info(f"video upload received from {name}")
 
-    ext = None
-    ext = ext_parse_caption(message, message.caption, ext)
-    ext = ext_parse_mime(message, video.mime_type, ext)
-    if ext is None:
-        message.reply_text("unknown extension, defaulting to .video")
-        ext = "video"
-
+    ext = ext_find_extension(message, name, "video", video.mime_type)
     upload_file(message, video.get_file(), ext)
 
 def main():
@@ -335,6 +341,7 @@ def main():
 
     dispatcher.add_handler(WCommandHandler("start", handle_start))
     dispatcher.add_handler(WCommandHandler("text", handle_text))
+    dispatcher.add_handler(WCommandHandler("extension", handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
