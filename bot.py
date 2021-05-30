@@ -5,7 +5,7 @@ import string
 import logging
 import mimetypes
 
-from typing import *
+from typing import List, Dict, Optional
 from random import choice
 from functools import wraps
 
@@ -109,7 +109,7 @@ def ext_parse_caption(message: Message, caption: Optional[str], ext: Optional[st
 
     return ext
 
-def ext_custom_extension(message: Message, name: str) -> Optional[str]:
+def ext_custom_extension(name: str) -> Optional[str]:
     ext = user_custom_ext.get(name)
     if ext is not None:
         del user_custom_ext[name]
@@ -120,7 +120,7 @@ def ext_find_extension(message: Message, name: str, default: str, mime: Optional
     if caption is None:
         caption = message.caption
 
-    ext = ext_custom_extension(message, name) if try_custom else None
+    ext = ext_custom_extension(name) if try_custom else None
     ext = ext_parse_caption(message, caption, ext)
     ext = ext_parse_mime(message, mime, ext)
     if ext is None:
@@ -166,7 +166,7 @@ def wrap_exceptions(fn):
 # --- handlers ---
 
 @wrap_exceptions
-def handle_start(update: Update, context: CallbackContext):
+def handle_start(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -181,7 +181,7 @@ def handle_start(update: Update, context: CallbackContext):
     )
 
 @wrap_exceptions
-def handle_text(update: Update, context: CallbackContext):
+def handle_text(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -231,7 +231,7 @@ def handle_text(update: Update, context: CallbackContext):
         upload_data(message, data.encode('utf-8'), ext)
 
 @wrap_exceptions
-def handle_photo(update: Update, context: CallbackContext):
+def handle_photo(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -248,7 +248,7 @@ def handle_photo(update: Update, context: CallbackContext):
     upload_file(message, photo.get_file(), ext)
 
 @wrap_exceptions
-def handle_document(update: Update, context: CallbackContext):
+def handle_document(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -265,7 +265,7 @@ def handle_document(update: Update, context: CallbackContext):
     upload_file(message, document.get_file(), ext)
 
 @wrap_exceptions
-def handle_audio(update: Update, context: CallbackContext):
+def handle_audio(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -282,7 +282,7 @@ def handle_audio(update: Update, context: CallbackContext):
     upload_file(message, audio.get_file(), ext)
 
 @wrap_exceptions
-def handle_voice(update: Update, context: CallbackContext):
+def handle_voice(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
@@ -299,7 +299,7 @@ def handle_voice(update: Update, context: CallbackContext):
     upload_file(message, voice.get_file(), ext)
 
 @wrap_exceptions
-def handle_video(update: Update, context: CallbackContext):
+def handle_video(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
         return
