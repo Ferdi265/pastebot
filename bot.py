@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 TOKEN = os.environ.get("TMPBOT_TELEGRAM_TOKEN")
 WHITELIST = os.environ.get("TMPBOT_TELEGRAM_WHITELIST", "theFerdi265").split(":")
+BOT_NAME = os.environ.get("TMPBOT_BOT_NAME", "tmp.yrlf.at")
 PASTE_URL = os.environ.get("TMPBOT_PASTE_URL", "https://tmp.yrlf.at")
 PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
@@ -175,7 +176,7 @@ def handle_start(update: Update, _: CallbackContext):
     logger.info(f"start message received from {name}")
 
     message.reply_text(
-        "Hi! I'm the tmp.yrlf.at bot.\n" +
+        f"Hi! I'm the {BOT_NAME} bot.\n" +
         "\n" +
         "Send me stuff and I'll host it!"
     )
@@ -322,6 +323,9 @@ def main():
 
     if "TMPBOT_TELEGRAM_WHITELIST" not in os.environ:
         logger.warning(f"no TELEGRAM_WHITELIST supplied, defaulting to {WHITELIST}")
+
+    if "TMPBOT_BOT_NAME" not in os.environ:
+        logger.warning(f"no TMPBOT_BOT_NAME supplied, defaulting to {BOT_NAME}")
 
     if "TMPBOT_PASTE_URL" not in os.environ:
         logger.warning(f"no TMPBOT_PASTE_URL supplied, defaulting to {PASTE_URL}")
