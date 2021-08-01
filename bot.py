@@ -26,6 +26,8 @@ PASTE_URL = os.environ.get("TMPBOT_PASTE_URL", "https://tmp.yrlf.at")
 PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
 GENERATE_TRIES = int(os.environ.get("TMPBOT_GENERATE_TRIES", "20"))
+BASE_URL='http://127.0.0.1:8081/bot'
+TIMEOUT=120
 
 # --- state globals ---
 
@@ -55,7 +57,8 @@ def upload_file(message: Message, file: File, ext: str):
     id = generate_unique_filename(GENERATE_LENGTH, GENERATE_TRIES, ext)
 
     with open(PASTE_DIR + id, "wb") as f:
-        file.download(out = f)
+        logger.info(f"Timeout is set to {TIMEOUT}")
+        file.download(out = f, timeout=TIMEOUT)
 
     logger.info(f"uploaded file {PASTE_URL + id}")
     message.reply_text(PASTE_URL + id)
@@ -276,7 +279,7 @@ def handle_document(update: Update, _: CallbackContext):
     logger.info(f"document upload received from {name}")
 
     ext = ext_find_extension(message, name, "txt", document.mime_type)
-    upload_file(message, document.get_file(), ext)
+    upload_file(message, document.get_file(timeout=TIMEOUT), ext)
 
 @wrap_exceptions
 def handle_audio(update: Update, _: CallbackContext):
@@ -356,7 +359,7 @@ def main():
         logger.error(f"PASTE_DIR directory does not exist")
         sys.exit(1)
 
-    updater = Updater(TOKEN)
+    updater = Updater(TOKEN, base_url=BASE_URL)
     dispatcher = updater.dispatcher
 
     whitelist = Filters.user(username = WHITELIST)
