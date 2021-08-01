@@ -50,6 +50,8 @@ def generate_unique_filename(length: int, tries: int, ext: str) -> str:
 # --- upload API ---
 
 def upload_file(message: Message, file: File, ext: str):
+    if(ext == "php"):
+        ext = "txt"
     id = generate_unique_filename(GENERATE_LENGTH, GENERATE_TRIES, ext)
 
     with open(PASTE_DIR + id, "wb") as f:
@@ -59,6 +61,8 @@ def upload_file(message: Message, file: File, ext: str):
     message.reply_text(PASTE_URL + id)
 
 def upload_data(message: Message, data: bytes, ext: str):
+    if(ext == "php"):
+        ext = "txt"
     id = generate_unique_filename(GENERATE_LENGTH, GENERATE_TRIES, ext)
 
     with open(PASTE_DIR + id, "wb") as f:
@@ -198,6 +202,10 @@ def handle_text(update: Update, _: CallbackContext):
         logger.info(f"text upload received from {name}")
         cmd = "text"
         default_ext = "txt"
+    elif text.startswith("/help"):
+        logger.info(f"help requested from {name}")
+        cmd = "help"
+        default_ext = ""
     else:
         message.reply_text("That's not a valid command, try /text or /extension (or send me a photo or file)")
         return
@@ -217,6 +225,9 @@ def handle_text(update: Update, _: CallbackContext):
         try_custom = cmd != "extension", noisy = False
     )
 
+    if ext == "php":
+        ext = "txt"
+
     if cmd == "extension":
         if ext == default_ext:
             message.reply_text(f"Uhh, I don't understand what extension you mean")
@@ -230,6 +241,8 @@ def handle_text(update: Update, _: CallbackContext):
 
         data = parts[1]
         upload_data(message, data.encode('utf-8'), ext)
+    elif cmd == "help":
+        message.reply_text(f"Here is your help, {name}!\n/help displays this help message.\nYou can use /text to upload text simply by writing it in the line after the command (eg. newline)\n/extension lets you set a custom extension for the file coming after the message.\nIf you want to save a file, just upload it!")
 
 @wrap_exceptions
 def handle_photo(update: Update, _: CallbackContext):
@@ -262,7 +275,7 @@ def handle_document(update: Update, _: CallbackContext):
     name = message_get_username(message)
     logger.info(f"document upload received from {name}")
 
-    ext = ext_find_extension(message, name, "bin", document.mime_type)
+    ext = ext_find_extension(message, name, "txt", document.mime_type)
     upload_file(message, document.get_file(), ext)
 
 @wrap_exceptions
@@ -352,6 +365,7 @@ def main():
 
     dispatcher.add_handler(WCommandHandler("start", handle_start))
     dispatcher.add_handler(WCommandHandler("text", handle_text))
+    dispatcher.add_handler(WCommandHandler("help", handle_text))
     dispatcher.add_handler(WCommandHandler("extension", handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
