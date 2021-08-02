@@ -8,6 +8,7 @@ import mimetypes
 from typing import List, Dict, Optional
 from random import choice
 from functools import wraps
+from dataclasses import dataclass
 
 from telegram import Update, Message, PhotoSize, File
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -32,6 +33,16 @@ TIMEOUT=120
 # --- state globals ---
 
 user_custom_ext: Dict[str, str] = {}
+
+# --- users dict ---
+@dataclass
+class UserContext:
+    total_text: str = ""
+    text_ts: int = 0
+    unkown_commands: int = 0
+    long_string: bool = False
+
+user_cache: Dict[str, UserContext] = {}
 
 # --- upload implementation details ---
 
@@ -171,9 +182,20 @@ def wrap_exceptions(fn):
 
     return handler
 
+def remember_user(fn):
+    @wraps(fn)
+    def handler(update: Update, context: CallbackContext):
+        if update.message is not None:
+            username = message_get_username(update.message)
+            if username not in user_cache:
+                user_cache[username] = UserContext()
+        fn(update, context)
+    return handler
+
 # --- handlers ---
 
 @wrap_exceptions
+@remember_user
 def handle_start(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -189,6 +211,7 @@ def handle_start(update: Update, _: CallbackContext):
     )
 
 @wrap_exceptions
+@remember_user
 def handle_text(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -197,21 +220,36 @@ def handle_text(update: Update, _: CallbackContext):
     text = message.text or ""
     name = message_get_username(message)
 
+    long_str = user_cache[name].long_string
+    too_long = (len(text) == 4094)
+
     if text.startswith("/extension"):
         logger.info(f"custom extension request received from {name}")
         cmd = "extension"
         default_ext = ""
     elif text.startswith("/text"):
+        user_cache[name].total_text = ""
         logger.info(f"text upload received from {name}")
         cmd = "text"
         default_ext = "txt"
+        if not long_str and len(text) >= 4094:
+            user_cache[name].long_string = True
     elif text.startswith("/help"):
         logger.info(f"help requested from {name}")
         cmd = "help"
         default_ext = ""
-    else:
+    elif not long_str:
         message.reply_text("That's not a valid command, try /text or /extension (or send me a photo or file)")
+        user_cache[name].unkown_commands += 1
+        if user_cache[name].unkown_commands > 4:
+            message.reply_text("Please stop that! It is very anoying!!")
+            user_cache[name].unkown_commands = 0
         return
+    elif long_str:
+        cmd = "append_text"
+        default_ext = "txt"
+    else:
+        logger.info("Unhandled case.")
 
     parts = text.split('\n', 1)
     cmdline = parts[0]
@@ -237,17 +275,27 @@ def handle_text(update: Update, _: CallbackContext):
         else:
             user_custom_ext[name] = ext
             message.reply_text(f"Got it! The next file you upload will have the extension '.{ext}'")
-    elif cmd == "text":
+    elif cmd == "text" and not too_long:
         if len(parts) < 2:
             message.reply_text("Huh? You didn't send me anything to upload.")
             return
 
         data = parts[1]
         upload_data(message, data.encode('utf-8'), ext)
+    elif cmd == "append_text":
+        data = parts[1]
+        user_cache[name].total_text += data
+        if len(text) < 4094:
+            user_cache[name].long_string = False
+            upload_data(message, user_cache[name].total_text.encode('utf-8'), ext)
     elif cmd == "help":
         message.reply_text(f"Here is your help, {name}!\n/help displays this help message.\nYou can use /text to upload text simply by writing it in the line after the command (eg. newline)\n/extension lets you set a custom extension for the file coming after the message.\nIf you want to save a file, just upload it!")
+    
+    if long_str == False:
+        user_cache[name].long_string = (len(text) >= 4094)
 
 @wrap_exceptions
+@remember_user
 def handle_photo(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -265,6 +313,7 @@ def handle_photo(update: Update, _: CallbackContext):
     upload_file(message, photo.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_document(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -282,6 +331,7 @@ def handle_document(update: Update, _: CallbackContext):
     upload_file(message, document.get_file(timeout=TIMEOUT), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_audio(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -299,6 +349,7 @@ def handle_audio(update: Update, _: CallbackContext):
     upload_file(message, audio.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_voice(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -316,6 +367,7 @@ def handle_voice(update: Update, _: CallbackContext):
     upload_file(message, voice.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_video(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -370,6 +422,7 @@ def main():
     dispatcher.add_handler(WCommandHandler("text", handle_text))
     dispatcher.add_handler(WCommandHandler("help", handle_text))
     dispatcher.add_handler(WCommandHandler("extension", handle_text))
+    dispatcher.add_handler(WMessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
