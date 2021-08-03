@@ -389,6 +389,22 @@ def handle_video(update: Update, _: CallbackContext):
     upload_file(message, video.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
+def handle_contact(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+    
+    contact = message.contact
+    if contact is None:
+        logger.warning("invalid contact")
+        return
+    
+    name = message_get_username(message)
+    logger.info(f"contact upload received from {name}")
+    upload_data(message, contact.vcard.encode('utf-8'), "vcf")
+
+@wrap_exceptions
 def check_user(update: Update, _: CallbackContext):
     username = message_get_username(update.message).split("@",1)[1]
     if username not in WHITELIST:
@@ -439,6 +455,7 @@ def main():
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
     dispatcher.add_handler(WMessageHandler(Filters.voice, handle_voice))
     dispatcher.add_handler(WMessageHandler(Filters.video, handle_video))
+    dispatcher.add_handler(WMessageHandler(Filters.contact, handle_contact))
     dispatcher.add_handler(MessageHandler(Filters.text, check_user))
 
     try:
