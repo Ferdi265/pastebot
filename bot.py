@@ -426,6 +426,24 @@ def handle_contact(update: Update, _: CallbackContext):
     upload_data(message, contact.vcard.encode('utf-8'), "vcf")
 
 @wrap_exceptions
+@remember_user
+def handle_sticker(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+    
+    sticker = message.sticker
+    if sticker is None:
+        logger.warning("invalid sticker")
+        return
+
+    _file = sticker.get_file()
+
+    name = message_get_username(message)
+    logger.info(f"sticker upload received from {name}")
+    upload_file(message, _file, _file.file_path.rsplit('.', 1)[1])
+
+@wrap_exceptions
 def check_user(update: Update, _: CallbackContext):
     username = message_get_username(update.message).split("@",1)[1]
     if username not in WHITELIST:
@@ -455,6 +473,7 @@ def handle_delete(update: Update, _: CallbackContext):
         bot_msg.delete()
         files = os.listdir(PASTE_DIR)
         files.remove("index.php")
+        files.remove("README.md")
         del_messages = []
         for _file in files:
             if PASTE_DIR[0] != "/":
@@ -517,6 +536,7 @@ def main():
     dispatcher.add_handler(WMessageHandler(Filters.voice, handle_voice))
     dispatcher.add_handler(WMessageHandler(Filters.video, handle_video))
     dispatcher.add_handler(WMessageHandler(Filters.video_note, handle_video_note))
+    dispatcher.add_handler(WMessageHandler(Filters.sticker, handle_sticker))
     dispatcher.add_handler(WMessageHandler(Filters.contact, handle_contact))
     dispatcher.add_handler(MessageHandler(Filters.text, check_user))
 

@@ -140,3 +140,4 @@ This list is build like this: **Type** -> *Default file extension*
 - Video files -> .video
 - Contacts (.vcf / vCard / **text/vCard**) -> .vcf
 - Video-Notes -> .mp4
+- Sticker -> .webp for normal sticker / .tgs for animated sticker
