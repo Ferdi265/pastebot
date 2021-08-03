@@ -38,7 +38,6 @@ user_custom_ext: Dict[str, str] = {}
 @dataclass
 class UserContext:
     total_text: str = ""
-    text_ts: int = 0
     unkown_commands: int = 0
     long_string: bool = False
 
@@ -238,6 +237,9 @@ def handle_text(update: Update, _: CallbackContext):
         logger.info(f"help requested from {name}")
         cmd = "help"
         default_ext = ""
+    elif text.startswith("/debug"):
+        cmd = "debug"
+        default_ext = ""
     elif not long_str:
         message.reply_text("That's not a valid command, try /text or /extension (or send me a photo or file)")
         user_cache[name].unkown_commands += 1
@@ -290,6 +292,8 @@ def handle_text(update: Update, _: CallbackContext):
             upload_data(message, user_cache[name].total_text.encode('utf-8'), ext)
     elif cmd == "help":
         message.reply_text(f"Here is your help, {name}!\n/help displays this help message.\nYou can use /text to upload text simply by writing it in the line after the command (eg. newline)\n/extension lets you set a custom extension for the file coming after the message.\nIf you want to save a file, just upload it!")
+    elif cmd == "debug":
+        message.reply_text(f"Here is all i know:\n\n{user_cache=}\n\n{user_custom_ext=}")
     
     if long_str == False:
         user_cache[name].long_string = (len(text) >= 4094)
@@ -384,6 +388,12 @@ def handle_video(update: Update, _: CallbackContext):
     ext = ext_find_extension(message, name, "video", video.mime_type)
     upload_file(message, video.get_file(), ext)
 
+@wrap_exceptions
+def check_user(update: Update, _: CallbackContext):
+    username = message_get_username(update.message).split("@",1)[1]
+    if username not in WHITELIST:
+        update.message.reply_text(f"Sorry, you are not on my whitelist, @{username}!")
+
 def main():
     if TOKEN is None:
         logger.error("no TMPBOT_TELEGRAM_TOKEN supplied")
@@ -422,12 +432,14 @@ def main():
     dispatcher.add_handler(WCommandHandler("text", handle_text))
     dispatcher.add_handler(WCommandHandler("help", handle_text))
     dispatcher.add_handler(WCommandHandler("extension", handle_text))
+    dispatcher.add_handler(WCommandHandler("debug", handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
     dispatcher.add_handler(WMessageHandler(Filters.voice, handle_voice))
     dispatcher.add_handler(WMessageHandler(Filters.video, handle_video))
+    dispatcher.add_handler(MessageHandler(Filters.text, check_user))
 
     try:
         updater.start_polling()
