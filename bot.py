@@ -29,8 +29,8 @@ PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
 GENERATE_TRIES = int(os.environ.get("TMPBOT_GENERATE_TRIES", "20"))
 DELETE_PASSWORD = os.environ.get("TMPBOT_DEL_ALL", "")
-BASE_URL='http://127.0.0.1:8081/bot'
-TIMEOUT=120
+BASE_URL= os.environ.get("TMPBOT_BASE_URL", "")
+TIMEOUT = int(os.environ.get("TMPBOT_TIMEOUT", 5))
 
 # --- state globals ---
 
@@ -467,7 +467,10 @@ def main():
         logger.error(f"PASTE_DIR directory does not exist")
         sys.exit(1)
 
-    updater = Updater(TOKEN, base_url=BASE_URL)
+    if BASE_URL != "":
+        updater = Updater(TOKEN, base_url=BASE_URL)
+    else:
+        updater = Updater(TOKEN)
     dispatcher = updater.dispatcher
 
     whitelist = Filters.user(username = WHITELIST)
