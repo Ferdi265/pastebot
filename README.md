@@ -1,6 +1,6 @@
 # Pastebot
 This is a telegram bot forked from a friend of mine, as he wasn't interested in developing it anymore.
-It supports nearly every way files can send on telegram! (If not, please open an issue and I will try to add support for it!)
+It supports every way files can be send on telegram! (If not, please open an issue and I will try to add support for it!)
 Just send any type of file to the bot or use the /text command to upload stuff to your webserver! The bot will then reply with a url to your file. The filename will be random.
 
 # Table of Contents  
