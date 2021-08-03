@@ -124,7 +124,6 @@ Here you can find the command usage of the bot.
     elitr, sed diam nonumy eirmod tempor invidunt ut 
     labore et dolore magna aliquyam erat, sed diam 
     voluptua. At vero eos et accusam et
-    
     ```
 - **/debug** - Only works for the first user defined in *'TMPBOT_TELEGRAM_WHITELIST'*. Prints all arrays containing stuff like infos for the long-text-routines.
 - **/delete** - Only works for the first user defined in *'TMPBOT_TELEGRAM_WHITELIST'*.
