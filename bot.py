@@ -436,9 +436,17 @@ def handle_delete(update: Update, _: CallbackContext):
         bot_msg.delete()
         files = os.listdir(PASTE_DIR)
         files.remove("index.php")
+        del_messages = []
         for _file in files:
-            filename = f"{os.getcwd()}/{PASTE_DIR}/{_file}"
+            if PASTE_DIR[0] != "/":
+                filename = f"{os.getcwd()}/{PASTE_DIR}/{_file}"
+            else:
+                filename = f"{PASTE_DIR}/{_file}"
             os.remove(filename)
+            del_messages.append(message.reply_text(f"Deleting file '{filename}'..."))
+        sleep(3)
+        for msg in del_messages:
+            msg.delete()
 
 def main():
     if TOKEN is None:
