@@ -295,7 +295,8 @@ def handle_text(update: Update, _: CallbackContext):
     elif cmd == "help":
         message.reply_text(f"Here is your help, {name}!\n/help displays this help message.\nYou can use /text to upload text simply by writing it in the line after the command (eg. newline)\n/extension lets you set a custom extension for the file coming after the message.\nIf you want to save a file, just upload it!")
     elif cmd == "debug":
-        message.reply_text(f"Here is all i know:\n\n{user_cache=}\n\n{user_custom_ext=}")
+        if name.split("@", 1)[1] == WHITELIST[0]:
+            message.reply_text(f"Here is all i know:\n\n{user_cache=}\n\n{user_custom_ext=}")
     
     if long_str == False:
         user_cache[name].long_string = (len(text) >= 4094)
