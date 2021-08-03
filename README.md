@@ -15,7 +15,6 @@ Just send any type of file to the bot or use the /text command to upload stuff t
   - [NGINX config](#nginx-config)
 - [Usage / Commands](#usage--commands)
 - [Supported message types](#supported-message-types)
-- [Planned Message types](#planned-message-types)
 
 
 # Installation
@@ -131,13 +130,13 @@ Here you can find the command usage of the bot.
   - All messages containing `/delete` will delete themselves after a little delay.
 
 # Supported message types
-- Text message
-- Images
-- Documents
-- Audio files
-- Voice messages
-- Video files
-- Contacts (.vcf / vCard / **text/vCard**)
-  
-# Planned Message types
-- Video-Notes
+The default file extension is the extension that will be used in case file extension can't be found using MIME.
+This list is build like this: **Type** -> *Default file extension*
+- Text message -> .txt
+- Images -> .jpg
+- Documents -> .txt
+- Audio files -> .mp3
+- Voice messages -> .voice
+- Video files -> .video
+- Contacts (.vcf / vCard / **text/vCard**) -> .vcf
+- Video-Notes -> .mp4

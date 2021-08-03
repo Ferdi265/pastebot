@@ -352,7 +352,7 @@ def handle_audio(update: Update, _: CallbackContext):
     name = message_get_username(message)
     logger.info(f"audio upload received from {name}")
 
-    ext = ext_find_extension(message, name, "audio", audio.mime_type)
+    ext = ext_find_extension(message, name, "mp3", audio.mime_type)
     upload_file(message, audio.get_file(), ext)
 
 @wrap_exceptions
@@ -390,6 +390,24 @@ def handle_video(update: Update, _: CallbackContext):
 
     ext = ext_find_extension(message, name, "video", video.mime_type)
     upload_file(message, video.get_file(), ext)
+
+@wrap_exceptions
+@remember_user
+def handle_video_note(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+
+    video_note = message.video_note
+    if video_note is None:
+        logger.warning("video-note was empty")
+        return
+
+    name = message_get_username(message)
+    logger.info(f"video-note upload received from {name}")
+
+    ext = ext_find_extension(message, name, "mp4")
+    upload_file(message, video_note.get_file(), ext)
 
 @wrap_exceptions
 @remember_user
@@ -498,6 +516,7 @@ def main():
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
     dispatcher.add_handler(WMessageHandler(Filters.voice, handle_voice))
     dispatcher.add_handler(WMessageHandler(Filters.video, handle_video))
+    dispatcher.add_handler(WMessageHandler(Filters.video_note, handle_video_note))
     dispatcher.add_handler(WMessageHandler(Filters.contact, handle_contact))
     dispatcher.add_handler(MessageHandler(Filters.text, check_user))
 
