@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 from random import choice
 from functools import wraps
 from dataclasses import dataclass
+from time import sleep
 
 from telegram import Update, Message, PhotoSize, File
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -27,6 +28,7 @@ PASTE_URL = os.environ.get("TMPBOT_PASTE_URL", "https://tmp.yrlf.at")
 PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
 GENERATE_TRIES = int(os.environ.get("TMPBOT_GENERATE_TRIES", "20"))
+DELETE_PASSWORD = os.environ.get("TMPBOT_DEL_ALL", "")
 BASE_URL='http://127.0.0.1:8081/bot'
 TIMEOUT=120
 
@@ -410,6 +412,34 @@ def check_user(update: Update, _: CallbackContext):
     if username not in WHITELIST:
         update.message.reply_text(f"Sorry, you are not on my whitelist, @{username}!")
 
+@wrap_exceptions
+def handle_delete(update: Update, _: CallbackContext):
+    message = update.message
+    message.delete()
+    name = message_get_username(message)
+    if DELETE_PASSWORD == "":
+        logger.info("Deleting is deactivated.")
+        return
+    if name.split("@", 1)[1] != WHITELIST[0]:
+        logger.warning(f"User {name} made a unauthorized request to delete all files!")
+        bot_msg = message.reply_text(f"You are unauthorized!")
+        sleep(1)
+        bot_msg.delete()
+        return
+    splitted = message.text.split(" ", 1)
+    if len(splitted) != 2:
+        return
+    password = splitted[1]
+    if password == DELETE_PASSWORD:
+        bot_msg = message.reply_text("Deleting files...")
+        sleep(.6)
+        bot_msg.delete()
+        files = os.listdir(PASTE_DIR)
+        files.remove("index.php")
+        for _file in files:
+            filename = f"{os.getcwd()}/{PASTE_DIR}/{_file}"
+            os.remove(filename)
+
 def main():
     if TOKEN is None:
         logger.error("no TMPBOT_TELEGRAM_TOKEN supplied")
@@ -449,6 +479,7 @@ def main():
     dispatcher.add_handler(WCommandHandler("help", handle_text))
     dispatcher.add_handler(WCommandHandler("extension", handle_text))
     dispatcher.add_handler(WCommandHandler("debug", handle_text))
+    dispatcher.add_handler(WCommandHandler("delete", handle_delete))
     dispatcher.add_handler(WMessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
