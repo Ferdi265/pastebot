@@ -474,6 +474,7 @@ def handle_delete(update: Update, _: CallbackContext):
         files = os.listdir(PASTE_DIR)
         files.remove("index.php")
         files.remove("README.md")
+        files.remove("PERSIST")
         del_messages = []
         for _file in files:
             if PASTE_DIR[0] != "/":
