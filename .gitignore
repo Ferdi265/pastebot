@@ -2,3 +2,4 @@
 .venv
 tmp/
 TODO.md
+logs/
