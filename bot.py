@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # --- configuration globals ---
 
 TOKEN = os.environ.get("TMPBOT_TELEGRAM_TOKEN")
-WHITELIST = os.environ.get("TMPBOT_TELEGRAM_WHITELIST", "theFerdi265").split(":")
+WHITELIST = os.environ.get("TMPBOT_TELEGRAM_WHITELIST", "yrlf0").split(":")
 BOT_NAME = os.environ.get("TMPBOT_BOT_NAME", "tmp.yrlf.at")
 PASTE_URL = os.environ.get("TMPBOT_PASTE_URL", "https://tmp.yrlf.at")
 PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
