@@ -8,6 +8,8 @@ import mimetypes
 from typing import List, Dict, Optional
 from random import choice
 from functools import wraps
+from dataclasses import dataclass
+from time import sleep
 
 from telegram import Update, Message, PhotoSize, File
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -26,10 +28,22 @@ PASTE_URL = os.environ.get("TMPBOT_PASTE_URL", "https://tmp.yrlf.at")
 PASTE_DIR = os.environ.get("TMPBOT_PASTE_DIR", "tmp")
 GENERATE_LENGTH = int(os.environ.get("TMPBOT_GENERATE_LENGTH", "20"))
 GENERATE_TRIES = int(os.environ.get("TMPBOT_GENERATE_TRIES", "20"))
+DELETE_PASSWORD = os.environ.get("TMPBOT_DEL_ALL", "")
+BASE_URL= os.environ.get("TMPBOT_BASE_URL", "")
+TIMEOUT = int(os.environ.get("TMPBOT_TIMEOUT", 5))
 
 # --- state globals ---
 
 user_custom_ext: Dict[str, str] = {}
+
+# --- users dict ---
+@dataclass
+class UserContext:
+    total_text: str = ""
+    unkown_commands: int = 0
+    long_string: bool = False
+
+user_cache: Dict[str, UserContext] = {}
 
 # --- upload implementation details ---
 
@@ -50,15 +64,20 @@ def generate_unique_filename(length: int, tries: int, ext: str) -> str:
 # --- upload API ---
 
 def upload_file(message: Message, file: File, ext: str):
+    if(ext == "php"):
+        ext = "txt"
     id = generate_unique_filename(GENERATE_LENGTH, GENERATE_TRIES, ext)
 
     with open(PASTE_DIR + id, "wb") as f:
-        file.download(out = f)
+        logger.info(f"Timeout is set to {TIMEOUT}")
+        file.download(out = f, timeout=TIMEOUT)
 
     logger.info(f"uploaded file {PASTE_URL + id}")
     message.reply_text(PASTE_URL + id)
 
 def upload_data(message: Message, data: bytes, ext: str):
+    if(ext == "php"):
+        ext = "txt"
     id = generate_unique_filename(GENERATE_LENGTH, GENERATE_TRIES, ext)
 
     with open(PASTE_DIR + id, "wb") as f:
@@ -164,9 +183,20 @@ def wrap_exceptions(fn):
 
     return handler
 
+def remember_user(fn):
+    @wraps(fn)
+    def handler(update: Update, context: CallbackContext):
+        if update.message is not None:
+            username = message_get_username(update.message)
+            if username not in user_cache:
+                user_cache[username] = UserContext()
+        fn(update, context)
+    return handler
+
 # --- handlers ---
 
 @wrap_exceptions
+@remember_user
 def handle_start(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -182,6 +212,7 @@ def handle_start(update: Update, _: CallbackContext):
     )
 
 @wrap_exceptions
+@remember_user
 def handle_text(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -190,17 +221,39 @@ def handle_text(update: Update, _: CallbackContext):
     text = message.text or ""
     name = message_get_username(message)
 
+    long_str = user_cache[name].long_string
+    too_long = (len(text) == 4094)
+
     if text.startswith("/extension"):
         logger.info(f"custom extension request received from {name}")
         cmd = "extension"
         default_ext = ""
     elif text.startswith("/text"):
+        user_cache[name].total_text = ""
         logger.info(f"text upload received from {name}")
         cmd = "text"
         default_ext = "txt"
-    else:
+        if not long_str and len(text) >= 4094:
+            user_cache[name].long_string = True
+    elif text.startswith("/help"):
+        logger.info(f"help requested from {name}")
+        cmd = "help"
+        default_ext = ""
+    elif text.startswith("/debug"):
+        cmd = "debug"
+        default_ext = ""
+    elif not long_str:
         message.reply_text("That's not a valid command, try /text or /extension (or send me a photo or file)")
+        user_cache[name].unkown_commands += 1
+        if user_cache[name].unkown_commands > 4:
+            message.reply_text("Please stop that! It is very anoying!!")
+            user_cache[name].unkown_commands = 0
         return
+    elif long_str:
+        cmd = "append_text"
+        default_ext = "txt"
+    else:
+        logger.info("Unhandled case.")
 
     parts = text.split('\n', 1)
     cmdline = parts[0]
@@ -217,21 +270,39 @@ def handle_text(update: Update, _: CallbackContext):
         try_custom = cmd != "extension", noisy = False
     )
 
+    if ext == "php":
+        ext = "txt"
+
     if cmd == "extension":
         if ext == default_ext:
             message.reply_text(f"Uhh, I don't understand what extension you mean")
         else:
             user_custom_ext[name] = ext
             message.reply_text(f"Got it! The next file you upload will have the extension '.{ext}'")
-    elif cmd == "text":
+    elif cmd == "text" and not too_long:
         if len(parts) < 2:
             message.reply_text("Huh? You didn't send me anything to upload.")
             return
 
         data = parts[1]
         upload_data(message, data.encode('utf-8'), ext)
+    elif cmd == "append_text":
+        data = parts[1]
+        user_cache[name].total_text += data
+        if len(text) < 4094:
+            user_cache[name].long_string = False
+            upload_data(message, user_cache[name].total_text.encode('utf-8'), ext)
+    elif cmd == "help":
+        message.reply_text(f"Here is your help, {name}!\n/help displays this help message.\nYou can use /text to upload text simply by writing it in the line after the command (eg. newline)\n/extension lets you set a custom extension for the file coming after the message.\nIf you want to save a file, just upload it!")
+    elif cmd == "debug":
+        if name.split("@", 1)[1] == WHITELIST[0]:
+            message.reply_text(f"Here is all i know:\n\n{user_cache=}\n\n{user_custom_ext=}")
+    
+    if long_str == False:
+        user_cache[name].long_string = (len(text) >= 4094)
 
 @wrap_exceptions
+@remember_user
 def handle_photo(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -249,6 +320,7 @@ def handle_photo(update: Update, _: CallbackContext):
     upload_file(message, photo.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_document(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -262,10 +334,11 @@ def handle_document(update: Update, _: CallbackContext):
     name = message_get_username(message)
     logger.info(f"document upload received from {name}")
 
-    ext = ext_find_extension(message, name, "bin", document.mime_type)
-    upload_file(message, document.get_file(), ext)
+    ext = ext_find_extension(message, name, "txt", document.mime_type)
+    upload_file(message, document.get_file(timeout=TIMEOUT), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_audio(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -279,10 +352,11 @@ def handle_audio(update: Update, _: CallbackContext):
     name = message_get_username(message)
     logger.info(f"audio upload received from {name}")
 
-    ext = ext_find_extension(message, name, "audio", audio.mime_type)
+    ext = ext_find_extension(message, name, "mp3", audio.mime_type)
     upload_file(message, audio.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_voice(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -300,6 +374,7 @@ def handle_voice(update: Update, _: CallbackContext):
     upload_file(message, voice.get_file(), ext)
 
 @wrap_exceptions
+@remember_user
 def handle_video(update: Update, _: CallbackContext):
     message = update.message
     if message is None:
@@ -315,6 +390,102 @@ def handle_video(update: Update, _: CallbackContext):
 
     ext = ext_find_extension(message, name, "video", video.mime_type)
     upload_file(message, video.get_file(), ext)
+
+@wrap_exceptions
+@remember_user
+def handle_video_note(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+
+    video_note = message.video_note
+    if video_note is None:
+        logger.warning("video-note was empty")
+        return
+
+    name = message_get_username(message)
+    logger.info(f"video-note upload received from {name}")
+
+    ext = ext_find_extension(message, name, "mp4")
+    upload_file(message, video_note.get_file(), ext)
+
+@wrap_exceptions
+@remember_user
+def handle_contact(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+    
+    contact = message.contact
+    if contact is None:
+        logger.warning("invalid contact")
+        return
+    
+    name = message_get_username(message)
+    logger.info(f"contact upload received from {name}")
+    upload_data(message, contact.vcard.encode('utf-8'), "vcf")
+
+@wrap_exceptions
+@remember_user
+def handle_sticker(update: Update, _: CallbackContext):
+    message = update.message
+    if message is None:
+        return
+    
+    sticker = message.sticker
+    if sticker is None:
+        logger.warning("invalid sticker")
+        return
+
+    _file = sticker.get_file()
+
+    name = message_get_username(message)
+    logger.info(f"sticker upload received from {name}")
+    upload_file(message, _file, _file.file_path.rsplit('.', 1)[1])
+
+@wrap_exceptions
+def check_user(update: Update, _: CallbackContext):
+    username = message_get_username(update.message).split("@",1)[1]
+    if username not in WHITELIST:
+        update.message.reply_text(f"Sorry, you are not on my whitelist, @{username}!")
+
+@wrap_exceptions
+def handle_delete(update: Update, _: CallbackContext):
+    message = update.message
+    message.delete()
+    name = message_get_username(message)
+    if DELETE_PASSWORD == "":
+        logger.info("Deleting is deactivated.")
+        return
+    if name.split("@", 1)[1] != WHITELIST[0]:
+        logger.warning(f"User {name} made a unauthorized request to delete all files!")
+        bot_msg = message.reply_text(f"You are unauthorized!")
+        sleep(1)
+        bot_msg.delete()
+        return
+    splitted = message.text.split(" ", 1)
+    if len(splitted) != 2:
+        return
+    password = splitted[1]
+    if password == DELETE_PASSWORD:
+        bot_msg = message.reply_text("Deleting files...")
+        sleep(.6)
+        bot_msg.delete()
+        files = os.listdir(PASTE_DIR)
+        files.remove("index.php")
+        files.remove("README.md")
+        files.remove("PERSIST")
+        del_messages = []
+        for _file in files:
+            if PASTE_DIR[0] != "/":
+                filename = f"{os.getcwd()}/{PASTE_DIR}/{_file}"
+            else:
+                filename = f"{PASTE_DIR}/{_file}"
+            os.remove(filename)
+            del_messages.append(message.reply_text(f"Deleting file '{filename}'..."))
+        sleep(3)
+        for msg in del_messages:
+            msg.delete()
 
 def main():
     if TOKEN is None:
@@ -343,7 +514,10 @@ def main():
         logger.error(f"PASTE_DIR directory does not exist")
         sys.exit(1)
 
-    updater = Updater(TOKEN)
+    if BASE_URL != "":
+        updater = Updater(TOKEN, base_url=BASE_URL)
+    else:
+        updater = Updater(TOKEN)
     dispatcher = updater.dispatcher
 
     whitelist = Filters.user(username = WHITELIST)
@@ -352,12 +526,20 @@ def main():
 
     dispatcher.add_handler(WCommandHandler("start", handle_start))
     dispatcher.add_handler(WCommandHandler("text", handle_text))
+    dispatcher.add_handler(WCommandHandler("help", handle_text))
     dispatcher.add_handler(WCommandHandler("extension", handle_text))
+    dispatcher.add_handler(WCommandHandler("debug", handle_text))
+    dispatcher.add_handler(WCommandHandler("delete", handle_delete))
+    dispatcher.add_handler(WMessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(WMessageHandler(Filters.photo, handle_photo))
     dispatcher.add_handler(WMessageHandler(Filters.document, handle_document))
     dispatcher.add_handler(WMessageHandler(Filters.audio, handle_audio))
     dispatcher.add_handler(WMessageHandler(Filters.voice, handle_voice))
     dispatcher.add_handler(WMessageHandler(Filters.video, handle_video))
+    dispatcher.add_handler(WMessageHandler(Filters.video_note, handle_video_note))
+    dispatcher.add_handler(WMessageHandler(Filters.sticker, handle_sticker))
+    dispatcher.add_handler(WMessageHandler(Filters.contact, handle_contact))
+    dispatcher.add_handler(MessageHandler(Filters.text, check_user))
 
     try:
         updater.start_polling()
